@@ -90,16 +90,37 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* 1. Alerta pedagógica anti-riego por costumbre */}
-      <div className="bg-sky-950/40 border border-sky-800/60 rounded-2xl p-4 text-sky-100 shadow-sm space-y-2">
+      {/* 1. Alerta pedagógica anti-riego por costumbre y Test Interactivo del Dedo */}
+      <div className="bg-sky-950/40 border border-sky-800/60 rounded-2xl p-4 text-sky-100 shadow-sm space-y-3">
         <div className="flex items-center gap-2 text-sky-300 font-semibold text-xs tracking-tight">
           <ShieldCheck className="w-4 h-4 text-sky-400" />
           <span>Regla de Oro: Riego por Necesidad</span>
         </div>
         <p className="text-xs text-sky-200/90 leading-relaxed">
-          En huertos familiares y macetas, la costumbre de regar a diario ahoga las raíces. 
-          <strong> Antes de regar:</strong> introduce 2 cm tu dedo en la tierra. Si sale fresca y con tierra pegada, <em>¡no riegues hoy!</em>
+          En huertos familiares y macetas, regar a diario por rutina ahoga las raíces. 
+          <strong> Antes de regar:</strong> introduce 2 cm tu dedo en la tierra.
         </p>
+
+        {/* Guía rápida táctil de diagnóstico del sustrato */}
+        <div className="bg-stone-900/80 rounded-xl p-3 border border-stone-800 space-y-2 text-xs">
+          <div className="text-[11px] font-bold text-sky-300 uppercase tracking-wide">
+            Diagnóstico rápido del sustrato (Test de los 2 cm):
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
+              <span className="font-bold text-amber-300 block">🍂 Dedo seco y limpio:</span>
+              <span className="text-stone-300">Sustrato agotado. <strong>Sí toca regar</strong>.</span>
+            </div>
+            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
+              <span className="font-bold text-emerald-300 block">🪴 Dedo fresco con tierra:</span>
+              <span className="text-stone-300">Humedad activa. <strong>¡No riegues hoy!</strong></span>
+            </div>
+            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
+              <span className="font-bold text-sky-300 block">🌊 Dedo empapado / barro:</span>
+              <span className="text-stone-300">Exceso peligroso. Revisa el drenaje de la maceta.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 2. Resumen rápido de hoy */}

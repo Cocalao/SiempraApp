@@ -237,3 +237,97 @@ export function getWateringStatus(lastWateredDateStr: string, intervalDays: numb
     urgency,
   };
 }
+
+/**
+ * PLANIFICACIÓN INVERSA DE SIEMBRA:
+ * Calcula la fecha exacta en la que se debe sembrar para cosechar en una fecha objetivo específica.
+ * 
+ * PUNTO CRÍTICO DONDE ALGUIEN SUELE EQUIVOCARSE:
+ * Restar días directamente con `date.getTime() - (dias * 86400000)` falla cuando se cruzan meses
+ * con diferente número de días o cambios de huso horario (DST).
+ * Se debe restar con `addDaysToDate(targetDateStr, -daysToHarvest)`.
+ */
+export function calculateSowingDate(targetHarvestDateStr: string, daysToHarvest: number): string {
+  const safeDays = Math.max(1, daysToHarvest);
+  return addDaysToDate(targetHarvestDateStr, -safeDays);
+}
+
+export interface FestiveSowingPlan {
+  targetHarvestDateStr: string;
+  optimalSowingDateStr: string;
+  isNextYear: boolean;
+  daysUntilSowing: number; // >0 si la siembra es a futuro, <=0 si ya llegó o pasó
+  status: 'sow_now' | 'upcoming' | 'missed_current_year';
+  statusBadge: string;
+  description: string;
+}
+
+/**
+ * Determina el momento de siembra para una festividad recurrente anual (ej: Halloween, Día de Muertos).
+ * 
+ * PUNTO CRÍTICO DONDE ALGUIEN SUELE EQUIVOCARSE:
+ * Si el usuario consulta la app en octubre y pide calabazas para Halloween (31 de oct),
+ * faltan solo 26 días pero la calabaza requiere 100 días.
+ * Si calculas la fecha solo para el año en curso, el sistema diría "Sembrá hace 74 días",
+ * lo cual no ayuda a la familia.
+ * Debemos informar que para este año ya no da tiempo, y proyectar la fecha exacta para la próxima edición.
+ */
+export function getFestiveSowingPlan(
+  targetMonthDay: string, // "MM-DD", ej: "10-31" o "11-01"
+  daysToHarvest: number
+): FestiveSowingPlan {
+  const todayStr = getTodayLocalDateString();
+  const todayObj = parseLocalDate(todayStr);
+  const currentYear = todayObj.getFullYear();
+
+  // Fecha de la festividad este año
+  const targetThisYearStr = `${currentYear}-${targetMonthDay}`;
+  const optimalSowingThisYearStr = calculateSowingDate(targetThisYearStr, daysToHarvest);
+  
+  // Días entre hoy y la fecha de siembra óptima de este año
+  const diffDaysThisYear = getCalendarDaysDiff(todayStr, optimalSowingThisYearStr);
+
+  // Margen de tolerancia de siembra (ej: ventana de 15 días alrededor de la fecha ideal)
+  if (diffDaysThisYear >= -7 && diffDaysThisYear <= 7) {
+    // Estamos justo en la semana o ventana ideal de siembra
+    return {
+      targetHarvestDateStr: targetThisYearStr,
+      optimalSowingDateStr: optimalSowingThisYearStr,
+      isNextYear: false,
+      daysUntilSowing: diffDaysThisYear,
+      status: 'sow_now',
+      statusBadge: '¡Sembrar en estos días!',
+      description: `Momento óptimo para este año ${currentYear}. Si siembras ahora, cosecharás justo para la fecha.`,
+    };
+  }
+
+  if (diffDaysThisYear > 7) {
+    // La fecha de siembra para este año aún no llega (está por venir)
+    return {
+      targetHarvestDateStr: targetThisYearStr,
+      optimalSowingDateStr: optimalSowingThisYearStr,
+      isNextYear: false,
+      daysUntilSowing: diffDaysThisYear,
+      status: 'upcoming',
+      statusBadge: `Sembrar en ${diffDaysThisYear} días`,
+      description: `Fecha ideal de siembra: ${formatSpanishDate(optimalSowingThisYearStr, true)} para llegar a cosechar en ${currentYear}.`,
+    };
+  }
+
+  // Si diffDaysThisYear < -7, la fecha de siembra para este año ya pasó.
+  // Proyectamos para el siguiente año para que la familia sepa cuándo planificar
+  const nextYear = currentYear + 1;
+  const targetNextYearStr = `${nextYear}-${targetMonthDay}`;
+  const optimalSowingNextYearStr = calculateSowingDate(targetNextYearStr, daysToHarvest);
+  const diffDaysNextYear = getCalendarDaysDiff(todayStr, optimalSowingNextYearStr);
+
+  return {
+    targetHarvestDateStr: targetNextYearStr,
+    optimalSowingDateStr: optimalSowingNextYearStr,
+    isNextYear: true,
+    daysUntilSowing: diffDaysNextYear,
+    status: 'missed_current_year',
+    statusBadge: `Planificar para ${nextYear}`,
+    description: `Para este año ${currentYear} la fecha de siembra ya venció (fue el ${formatSpanishDate(optimalSowingThisYearStr, true)}). Para ${nextYear}, siembra el ${formatSpanishDate(optimalSowingNextYearStr)}.`,
+  };
+}

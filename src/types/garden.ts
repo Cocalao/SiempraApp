@@ -13,12 +13,13 @@ export interface Crop {
   sowingDate: string; // Fecha de siembra en formato ISO YYYY-MM-DD
   wateringIntervalDays: number; // Intervalo de riego según necesidad real (ej: cada 3 días)
   lastWateredDate: string; // Última fecha en que se regó efectivamente (YYYY-MM-DD)
+  wateringHistory?: string[]; // Historial de fechas en que se regó (YYYY-MM-DD) para calcular la frecuencia semanal real
   daysToHarvest: number; // Días estimados desde la siembra hasta la cosecha
   notes?: string; // Observaciones de la familia (ej: sol directo en la mañana)
   createdAt: number; // Timestamp de creación
 }
 
-export type TabType = 'cultivos' | 'riego' | 'cosecha';
+export type TabType = 'cultivos' | 'riego' | 'cosecha' | 'estadisticas';
 
 export interface PresetCropTemplate {
   name: string;

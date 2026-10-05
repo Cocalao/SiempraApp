@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Sprout, Droplets, Sparkles } from 'lucide-react';
+import { Sprout, Droplets, Sparkles, BarChart3 } from 'lucide-react';
 import { TabType } from '../types/garden';
 
 interface BottomNavProps {
@@ -25,7 +25,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       aria-label="Navegación principal"
       className="fixed bottom-0 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-md border-t border-stone-800 safe-bottom"
     >
-      <div className="max-w-md mx-auto grid grid-cols-3 h-16">
+      <div className="max-w-md mx-auto grid grid-cols-4 h-16">
         {/* Pestaña 1: Cultivos */}
         <button
           onClick={() => onTabChange('cultivos')}
@@ -36,7 +36,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           }`}
         >
           <Sprout className={`w-5 h-5 ${currentTab === 'cultivos' ? 'stroke-[2.5]' : 'stroke-2'}`} />
-          <span className="text-[11px] mt-1 tracking-tight">Cultivos</span>
+          <span className="text-[10px] mt-1 tracking-tight">Cultivos</span>
         </button>
 
         {/* Pestaña 2: Riego Consciente */}
@@ -56,7 +56,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Riego</span>
+          <span className="text-[10px] mt-1 tracking-tight">Riego</span>
         </button>
 
         {/* Pestaña 3: Cosecha Estimada */}
@@ -76,7 +76,20 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Cosecha</span>
+          <span className="text-[10px] mt-1 tracking-tight">Cosecha</span>
+        </button>
+
+        {/* Pestaña 4: Estadísticas */}
+        <button
+          onClick={() => onTabChange('estadisticas')}
+          className={`flex flex-col items-center justify-center min-h-[44px] transition-colors cursor-pointer ${
+            currentTab === 'estadisticas'
+              ? 'text-violet-400 font-semibold'
+              : 'text-stone-400 hover:text-stone-200'
+          }`}
+        >
+          <BarChart3 className={`w-5 h-5 ${currentTab === 'estadisticas' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <span className="text-[10px] mt-1 tracking-tight">Estadísticas</span>
         </button>
       </div>
     </nav>

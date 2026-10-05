@@ -24,16 +24,17 @@ import { CropCard } from './components/CropCard';
 import { CropRegisterModal } from './components/CropRegisterModal';
 import { WateringCalendar } from './components/WateringCalendar';
 import { HarvestAvisos } from './components/HarvestAvisos';
+import { WateringStats } from './components/WateringStats';
 import { Crop, TabType } from './types/garden';
 import { loadCropsFromStorage, saveCropsToStorage } from './utils/storage';
 import { getTodayLocalDateString, getWateringStatus, getHarvestStatus } from './utils/dateUtils';
-import { Sprout, Plus, Droplets, Sparkles, Filter } from 'lucide-react';
+import { Sprout, Plus, Droplets, Sparkles, Filter, BarChart3 } from 'lucide-react';
 
 export default function App() {
   // 1. Estado de cultivos cargados de localStorage
   const [crops, setCrops] = useState<Crop[]>(() => loadCropsFromStorage());
   
-  // 2. Navegación activa: 'cultivos' | 'riego' | 'cosecha'
+  // 2. Navegación activa: 'cultivos' | 'riego' | 'cosecha' | 'estadisticas'
   const [currentTab, setCurrentTab] = useState<TabType>('cultivos');
 
   // 3. Control del modal de registro / edición
@@ -59,28 +60,49 @@ export default function App() {
     return status.urgency === 'ready_today' || status.urgency === 'overdue';
   }).length;
 
-  // Handler: Guardar o actualizar cultivo
+  // Handler: Guardar o actualizar cultivo manteniendo su historial de riego
   const handleSaveCrop = (newCrop: Crop) => {
     setCrops(prevCrops => {
       const exists = prevCrops.some(c => c.id === newCrop.id);
       if (exists) {
-        return prevCrops.map(c => (c.id === newCrop.id ? newCrop : c));
+        return prevCrops.map(c => {
+          if (c.id === newCrop.id) {
+            return {
+              ...newCrop,
+              wateringHistory: c.wateringHistory || [newCrop.lastWateredDate],
+            };
+          }
+          return c;
+        });
       }
-      return [newCrop, ...prevCrops];
+      return [
+        {
+          ...newCrop,
+          wateringHistory: newCrop.wateringHistory || [newCrop.lastWateredDate],
+        },
+        ...prevCrops,
+      ];
     });
     setCropToEdit(null);
   };
 
   // Handler: Registrar riego de hoy con 1 toque
   // PUNTO CRÍTICO: Se usa getTodayLocalDateString() para evitar desfase de zona horaria UTC
+  // y se agrega la fecha al historial de riegos para alimentar el gráfico de frecuencias reales
   const handleWaterToday = (cropId: string) => {
     const today = getTodayLocalDateString();
     setCrops(prevCrops =>
       prevCrops.map(c => {
         if (c.id === cropId) {
+          const currentHistory = c.wateringHistory || [c.lastWateredDate];
+          const updatedHistory = currentHistory.includes(today)
+            ? currentHistory
+            : [...currentHistory, today];
+
           return {
             ...c,
             lastWateredDate: today,
+            wateringHistory: updatedHistory,
           };
         }
         return c;
@@ -250,6 +272,11 @@ export default function App() {
               crops={crops}
               onOpenRegister={handleOpenNewCropModal}
             />
+          )}
+
+          {/* PESTAÑA 4: ESTADÍSTICAS (Recharts) */}
+          {currentTab === 'estadisticas' && (
+            <WateringStats crops={crops} />
           )}
         </main>
 

@@ -27,6 +27,7 @@ interface CropRegisterModalProps {
   onClose: () => void;
   onSaveCrop: (crop: Crop) => void;
   cropToEdit?: Crop | null;
+  initialPreset?: Partial<Crop> | null;
 }
 
 export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
@@ -34,6 +35,7 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
   onClose,
   onSaveCrop,
   cropToEdit,
+  initialPreset,
 }) => {
   const today = getTodayLocalDateString();
 
@@ -48,7 +50,7 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Si estamos editando, rellenar los datos; si es nuevo, resetear
+  // Si estamos editando, rellenar los datos; si viene preset de planificación, usarlo; sino resetear
   useEffect(() => {
     if (cropToEdit) {
       setName(cropToEdit.name);
@@ -59,6 +61,16 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
       setDaysToHarvest(cropToEdit.daysToHarvest);
       setLastWateredDate(cropToEdit.lastWateredDate);
       setNotes(cropToEdit.notes || '');
+      setErrorMessage('');
+    } else if (initialPreset) {
+      setName(initialPreset.name || '');
+      setVariety(initialPreset.variety || '');
+      setLocation(initialPreset.location || 'maceta');
+      setSowingDate(initialPreset.sowingDate || today);
+      setWateringIntervalDays(initialPreset.wateringIntervalDays || 3);
+      setDaysToHarvest(initialPreset.daysToHarvest || 60);
+      setLastWateredDate(initialPreset.lastWateredDate || initialPreset.sowingDate || today);
+      setNotes(initialPreset.notes || '');
       setErrorMessage('');
     } else {
       setName('');
@@ -71,7 +83,7 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
       setNotes('');
       setErrorMessage('');
     }
-  }, [cropToEdit, isOpen, today]);
+  }, [cropToEdit, initialPreset, isOpen, today]);
 
   if (!isOpen) return null;
 

@@ -86,9 +86,15 @@ export function generateInitialCrops(): Crop[] {
       location: 'maceta',
       // Sembrado hace 52 días de un ciclo de 75 días -> Faltan 23 días para cosechar
       sowingDate: addDaysToDate(today, -52),
-      wateringIntervalDays: 3,
+      wateringIntervalDays: 3, // Programado: ~2.3 veces/semana (cada 3 días)
       // Último riego hace 3 días -> ¡Toca regar hoy!
       lastWateredDate: addDaysToDate(today, -3),
+      // Historial de riego semanal: regado hace 6, 4 y 3 días (3 veces en la semana)
+      wateringHistory: [
+        addDaysToDate(today, -6),
+        addDaysToDate(today, -4),
+        addDaysToDate(today, -3),
+      ],
       daysToHarvest: 75,
       notes: 'Ubicado en el patio con sol directo de mañana.',
       createdAt: Date.now() - 52 * 86400000,
@@ -100,9 +106,16 @@ export function generateInitialCrops(): Crop[] {
       location: 'balcon',
       // Sembrada hace 28 días de un ciclo de 35 días -> ¡Casi lista para cosechar!
       sowingDate: addDaysToDate(today, -28),
-      wateringIntervalDays: 2,
+      wateringIntervalDays: 2, // Programado: 3.5 veces/semana (cada 2 días)
       // Regada hoy -> Tierra húmeda, NO regar por costumbre
       lastWateredDate: today,
+      // Historial semanal: regada hace 6, 4, 2 días y hoy (4 veces en la semana)
+      wateringHistory: [
+        addDaysToDate(today, -6),
+        addDaysToDate(today, -4),
+        addDaysToDate(today, -2),
+        today,
+      ],
       daysToHarvest: 35,
       notes: 'Para hacer pesto en familia. Pellizcar flores.',
       createdAt: Date.now() - 28 * 86400000,
@@ -114,9 +127,15 @@ export function generateInitialCrops(): Crop[] {
       location: 'maceta',
       // Sembrado hace 20 días de un ciclo de 60 días
       sowingDate: addDaysToDate(today, -20),
-      wateringIntervalDays: 6,
+      wateringIntervalDays: 6, // Programado: ~1.2 veces/semana (cada 6 días)
       // Regado hace 1 día -> Próximo riego en 5 días
       lastWateredDate: addDaysToDate(today, -1),
+      // Historial semanal: regado hace 5, 3 y 1 día (3 veces en la semana -> ¡Sobreriego por costumbre!)
+      wateringHistory: [
+        addDaysToDate(today, -5),
+        addDaysToDate(today, -3),
+        addDaysToDate(today, -1),
+      ],
       daysToHarvest: 60,
       notes: 'Cuidado con el exceso de agua. Regar solo cuando la tierra esté bien seca.',
       createdAt: Date.now() - 20 * 86400000,
@@ -146,7 +165,13 @@ export function loadCropsFromStorage(): Crop[] {
       return generateInitialCrops();
     }
     
-    return parsed;
+    // Asegurar que cada cultivo tenga un array de historial defensivo
+    return parsed.map((item: any) => ({
+      ...item,
+      wateringHistory: Array.isArray(item.wateringHistory)
+        ? item.wateringHistory
+        : (item.lastWateredDate ? [item.lastWateredDate] : []),
+    }));
   } catch (err) {
     console.error('Error al leer de localStorage:', err);
     return generateInitialCrops();
