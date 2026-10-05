@@ -1,11 +1,9 @@
 /**
  * Tarjeta individual de cultivo para la vista de listado.
- * 
- * PUNTOS CRÍTICOS DONDE ALGUIEN SUELE EQUIVOCARSE:
- * 1. REGAR POR IMPULSO: Se debe mostrar visualmente si el suelo aún está húmedo para
- *    desincentivar pulsar "Regar" cuando la planta no lo necesita.
- * 2. BORRADO ACCIDENTAL: En pantallas táctiles de celulares, los botones pequeños
- *    de eliminar se tocan sin querer si no hay confirmación o separación adecuada.
+ * - Texto nunca menor a 16px.
+ * - Alto contraste para exteriores.
+ * - Botones secundarios para no competir con el botón principal de la pantalla.
+ * - Táctil accesible con área mínima de 48px.
  */
 
 import React, { useState } from 'react';
@@ -16,12 +14,10 @@ import {
   Edit3, 
   Trash2, 
   Check, 
-  AlertTriangle,
   MapPin
 } from 'lucide-react';
 import { Crop } from '../types/garden';
 import { 
-  formatSpanishDate, 
   formatSpanishDayMonth,
   getHarvestStatus, 
   getWateringStatus 
@@ -45,67 +41,66 @@ export const CropCard: React.FC<CropCardProps> = ({
   const wateringInfo = getWateringStatus(crop.lastWateredDate, crop.wateringIntervalDays);
   const harvestInfo = getHarvestStatus(crop.sowingDate, crop.daysToHarvest);
 
-  // Mapeo legible de ubicaciones
   const locationLabels = {
     maceta: '🪴 Maceta',
     balcon: '🌿 Balcón',
-    huerto: '🌱 Huerto en tierra',
-    mesa_cultivo: '🪵 Mesa de cultivo',
+    huerto: '🌱 Huerto',
+    mesa_cultivo: '🪵 Mesa',
   };
 
   return (
-    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-sm space-y-3.5 transition-all">
+    <article className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-4 shadow-md space-y-3.5">
       {/* Encabezado del cultivo */}
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-bold text-stone-100 leading-tight">
+            <h3 className="text-xl font-bold text-white leading-tight">
               {crop.name}
             </h3>
-            <span className="text-[11px] text-stone-400 bg-stone-800 px-2 py-0.5 rounded-md">
+            <span className="text-base text-stone-200 bg-stone-800 border border-stone-600 px-2.5 py-0.5 rounded-lg font-medium">
               {locationLabels[crop.location] || crop.location}
             </span>
           </div>
           {crop.variety && (
-            <p className="text-xs text-stone-400 mt-0.5">{crop.variety}</p>
+            <p className="text-base text-stone-300 mt-0.5 font-medium">{crop.variety}</p>
           )}
         </div>
 
-        {/* Acciones de edición / borrado */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Acciones secundarias: Editar / Borrar (hitbox >= 48px) */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onEdit(crop)}
-            className="w-8 h-8 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800 flex items-center justify-center transition-colors cursor-pointer"
+            className="min-h-[48px] min-w-[48px] rounded-xl text-stone-300 hover:text-white bg-stone-800 border border-stone-600 flex items-center justify-center transition-colors cursor-pointer"
             aria-label={`Editar ${crop.name}`}
           >
-            <Edit3 className="w-4 h-4" />
+            <Edit3 className="w-5 h-5" />
           </button>
           <button
             onClick={() => setShowConfirmDelete(true)}
-            className="w-8 h-8 rounded-lg text-stone-500 hover:text-red-400 hover:bg-stone-800 flex items-center justify-center transition-colors cursor-pointer"
+            className="min-h-[48px] min-w-[48px] rounded-xl text-stone-300 hover:text-red-400 bg-stone-800 border border-stone-600 flex items-center justify-center transition-colors cursor-pointer"
             aria-label={`Eliminar ${crop.name}`}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Confirmación defensiva de borrado para evitar toques accidentales en celular */}
+      {/* Confirmación de borrado */}
       {showConfirmDelete && (
-        <div className="p-3 bg-red-950/60 border border-red-800/60 rounded-xl text-xs space-y-2">
-          <p className="text-red-200">
-            ¿Eliminar el registro de <strong>{crop.name}</strong>?
+        <div className="p-3.5 bg-red-950 border-2 border-red-500 rounded-xl space-y-2 text-white">
+          <p className="font-bold text-base">
+            ¿Eliminar <strong>{crop.name}</strong>?
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => onDelete(crop.id)}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg"
+              className="flex-1 min-h-[48px] px-3 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-base rounded-xl cursor-pointer"
             >
               Sí, eliminar
             </button>
             <button
               onClick={() => setShowConfirmDelete(false)}
-              className="px-3 py-1.5 bg-stone-800 text-stone-300 rounded-lg hover:bg-stone-700"
+              className="flex-1 min-h-[48px] px-3 py-2 bg-stone-800 border border-stone-600 text-stone-200 font-bold text-base rounded-xl cursor-pointer"
             >
               Cancelar
             </button>
@@ -113,104 +108,100 @@ export const CropCard: React.FC<CropCardProps> = ({
         </div>
       )}
 
-      {/* 1. Módulo de Riego Consciente */}
-      <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+      {/* Módulo de Riego */}
+      <div className={`p-3.5 rounded-xl border-2 flex flex-col gap-2.5 ${
         wateringInfo.needsWaterToday
-          ? 'bg-amber-950/20 border-amber-800/40'
+          ? 'bg-amber-950/30 border-amber-500'
           : wateringInfo.urgency === 'watered_today'
-          ? 'bg-emerald-950/20 border-emerald-800/40'
-          : 'bg-stone-800/40 border-stone-800'
+          ? 'bg-emerald-950/30 border-emerald-600'
+          : 'bg-stone-950/60 border-stone-700'
       }`}>
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <Droplet className={`w-4 h-4 ${
+          <div className="flex items-center gap-2">
+            <Droplet className={`w-5 h-5 ${
               wateringInfo.needsWaterToday ? 'text-amber-400' : 'text-sky-400'
             }`} />
-            <span className={`text-xs font-semibold ${
-              wateringInfo.needsWaterToday ? 'text-amber-300' : 'text-stone-200'
+            <strong className={`text-base ${
+              wateringInfo.needsWaterToday ? 'text-amber-300 font-extrabold' : 'text-white'
             }`}>
               {wateringInfo.statusBadgeText}
-            </span>
+            </strong>
           </div>
-          <p className="text-[11px] text-stone-400 leading-tight">
+          <p className="text-base text-stone-200 leading-snug">
             {wateringInfo.adviceMessage}
           </p>
-          <p className="text-[10px] text-stone-500">
+          <p className="text-base text-stone-300 font-medium">
             Regar cada {crop.wateringIntervalDays} días · Último: {formatSpanishDayMonth(crop.lastWateredDate)}
           </p>
         </div>
 
-        {/* Botón táctil para registrar el riego de hoy */}
+        {/* Botón secundario para marcar regado (área táctil >= 48px) */}
         <button
           onClick={() => onWaterToday(crop.id)}
-          className={`shrink-0 min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer ${
+          className={`w-full min-h-[48px] px-4 py-2.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-transform active:scale-98 cursor-pointer border-2 ${
             wateringInfo.needsWaterToday
-              ? 'bg-sky-500 hover:bg-sky-400 text-stone-950 shadow-sm'
+              ? 'bg-sky-950 border-sky-400 text-sky-200 hover:bg-sky-900'
               : wateringInfo.urgency === 'watered_today'
-              ? 'bg-stone-800 text-stone-400 cursor-default'
-              : 'bg-stone-800 hover:bg-stone-700 text-stone-300'
+              ? 'bg-stone-800 border-stone-600 text-emerald-400 cursor-default'
+              : 'bg-stone-800 border-stone-600 text-stone-200 hover:bg-stone-700'
           }`}
         >
           {wateringInfo.urgency === 'watered_today' ? (
             <>
-              <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+              <Check className="w-5 h-5 text-emerald-400 stroke-[3]" />
               <span>Regado hoy</span>
             </>
           ) : (
             <>
-              <Droplet className="w-4 h-4 text-sky-400" />
+              <Droplet className="w-5 h-5 text-sky-400" />
               <span>Marcar regado</span>
             </>
           )}
         </button>
       </div>
 
-      {/* 2. Módulo de Aviso de Cosecha */}
-      <div className="p-3 bg-stone-800/30 border border-stone-800 rounded-xl space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-stone-300">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-medium">Cosecha estimada:</span>
+      {/* Módulo de Cosecha */}
+      <div className="p-3.5 bg-stone-950/60 border-2 border-stone-700 rounded-xl space-y-2">
+        <div className="flex items-center justify-between text-base flex-wrap gap-1">
+          <div className="flex items-center gap-1.5 text-stone-200 font-medium">
+            <Clock className="w-5 h-5 text-amber-400" />
+            <span>Cosecha:</span>
           </div>
-          <span className={`font-semibold ${
+          <strong className={`text-base ${
             harvestInfo.urgency === 'ready_today' || harvestInfo.urgency === 'overdue'
               ? 'text-emerald-400'
-              : harvestInfo.urgency === 'ready_soon'
-              ? 'text-amber-400'
-              : 'text-stone-300'
+              : 'text-amber-300'
           }`}>
             {harvestInfo.statusText}
-          </span>
+          </strong>
         </div>
 
-        {/* Barra de progreso del ciclo biológico */}
+        {/* Barra de progreso */}
         <div>
-          <div className="h-2 w-full bg-stone-800 rounded-full overflow-hidden">
+          <div className="h-3 w-full bg-stone-800 border border-stone-700 rounded-full overflow-hidden">
             <div 
               className={`h-full transition-all duration-300 ${
                 harvestInfo.progressPercent >= 100
-                  ? 'bg-emerald-400'
-                  : harvestInfo.progressPercent > 70
                   ? 'bg-amber-400'
-                  : 'bg-emerald-600'
+                  : 'bg-emerald-500'
               }`}
               style={{ width: `${harvestInfo.progressPercent}%` }}
             />
           </div>
-          <div className="flex justify-between items-center text-[10px] text-stone-400 mt-1">
+          <div className="flex justify-between items-center text-base text-stone-300 font-medium mt-1">
             <span>Siembra: {formatSpanishDayMonth(crop.sowingDate)}</span>
-            <span className="tabular-nums font-mono">{harvestInfo.progressPercent}% del ciclo</span>
-            <span>Día est.: {formatSpanishDayMonth(harvestInfo.harvestDateStr)}</span>
+            <span className="font-bold text-white">{harvestInfo.progressPercent}%</span>
+            <span>Día: {formatSpanishDayMonth(harvestInfo.harvestDateStr)}</span>
           </div>
         </div>
       </div>
 
-      {/* Notas familiares si existen */}
+      {/* Notas familiares */}
       {crop.notes && (
-        <p className="text-[11px] text-stone-400 italic bg-stone-800/20 px-2.5 py-1.5 rounded-lg border border-stone-800/50">
+        <p className="text-base text-stone-300 italic bg-stone-800/40 p-2.5 rounded-xl border border-stone-700">
           "{crop.notes}"
         </p>
       )}
-    </div>
+    </article>
   );
 };

@@ -1,14 +1,9 @@
 /**
- * Componente de Estadísticas de Riego para SIEMBRA.
- * Utiliza recharts para comparar la frecuencia de riego semanal real frente a la programada.
- * 
- * PUNTOS CRÍTICOS DONDE ALGUIEN SUELE EQUIVOCARSE:
- * 1. RESPONSIVE CONTAINER EN RECHARTS: Si el contenedor padre no tiene una altura fija
- *    (ej: `h-72`), `ResponsiveContainer` colapsa a 0px de alto en celulares.
- * 2. CÁLCULO DE LA VENTANA DE 7 DÍAS: Filtrar fechas de riego usando `getCalendarDaysDiff`
- *    en lugar de milisegundos crudos para no desfasar por cambios de horario de verano o medianoche.
- * 3. DECIMALES EN FRECUENCIA PROGRAMADA: Una planta con intervalo de 3 días se riega 7/3 = 2.333...
- *    veces por semana. Debe redondearse a 1 decimal (`Number.toFixed(1)`) para legibilidad en el eje Y.
+ * Componente de Estadísticas de Riego.
+ * - Texto nunca menor a 16px (incluso en ejes y leyendas del gráfico).
+ * - Alto contraste para exteriores.
+ * - Sin palabras técnicas.
+ * - Compatible con pantallas desde 320px.
  */
 
 import React from 'react';
@@ -24,42 +19,37 @@ import {
 } from 'recharts';
 import { Crop } from '../types/garden';
 import { getTodayLocalDateString, getCalendarDaysDiff } from '../utils/dateUtils';
-import { AlertTriangle, CheckCircle, Droplet, TrendingUp, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Droplet, TrendingUp, Plus } from 'lucide-react';
 
 interface WateringStatsProps {
   crops: Crop[];
+  onOpenRegister: () => void;
 }
 
-export const WateringStats: React.FC<WateringStatsProps> = ({ crops }) => {
+export const WateringStats: React.FC<WateringStatsProps> = ({ crops, onOpenRegister }) => {
   const todayStr = getTodayLocalDateString();
 
-  // Preparación de datos para Recharts
   const chartData = crops.map((crop) => {
-    // 1. Frecuencia semanal programada según el intervalo botánico
     const scheduledPerWeek = Number((7 / Math.max(1, crop.wateringIntervalDays)).toFixed(1));
-
-    // 2. Frecuencia semanal real: contar cuántas veces se regó en los últimos 7 días
     const history = crop.wateringHistory || (crop.lastWateredDate ? [crop.lastWateredDate] : []);
     
-    // Filtramos riegos ocurridos en los últimos 7 días (diferencia entre 0 y 6 días con respecto a hoy)
     const realCountLast7Days = history.filter((dateStr) => {
       const diff = getCalendarDaysDiff(dateStr, todayStr);
       return diff >= 0 && diff <= 6;
     }).length;
 
-    // Diferencia entre real y programado
     const diff = realCountLast7Days - scheduledPerWeek;
     let diagnosis: 'exceso' | 'optimo' | 'deficit' = 'optimo';
 
     if (diff >= 0.8) {
-      diagnosis = 'exceso'; // Regado más de lo necesario -> ¡Riego por costumbre!
+      diagnosis = 'exceso';
     } else if (diff <= -0.8) {
-      diagnosis = 'deficit'; // Menos de lo necesario
+      diagnosis = 'deficit';
     }
 
     return {
       id: crop.id,
-      name: crop.name.length > 12 ? `${crop.name.slice(0, 10)}…` : crop.name,
+      name: crop.name.length > 8 ? `${crop.name.slice(0, 7)}…` : crop.name,
       fullName: crop.name,
       location: crop.location,
       interval: crop.wateringIntervalDays,
@@ -70,30 +60,29 @@ export const WateringStats: React.FC<WateringStatsProps> = ({ crops }) => {
     };
   });
 
-  // Métricas acumuladas de la familia
   const totalProgramado = chartData.reduce((acc, curr) => acc + curr.Programado, 0);
   const totalReal = chartData.reduce((acc, curr) => acc + curr.Real, 0);
   const overwateredCrops = chartData.filter((c) => c.diagnosis === 'exceso');
 
-  // Tooltip personalizado con tema oscuro
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  // Tooltip con texto >= 16px
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-stone-900 border border-stone-700 p-3 rounded-xl shadow-xl text-xs space-y-1">
-          <p className="font-bold text-stone-100">{data.fullName}</p>
-          <p className="text-[11px] text-stone-400">Intervalo: cada {data.interval} días</p>
-          <div className="pt-1 space-y-0.5">
-            <p className="text-sky-300">
-              Programado: <strong className="font-mono">{data.Programado}</strong> riegos/semana
+        <div className="bg-stone-900 border-2 border-stone-600 p-3.5 rounded-xl shadow-2xl text-base space-y-1">
+          <p className="font-bold text-white text-lg">{data.fullName}</p>
+          <p className="text-base text-stone-300">Cada {data.interval} días</p>
+          <div className="pt-1 space-y-1">
+            <p className="text-sky-300 font-semibold">
+              Recomendado: <strong>{data.Programado}</strong> riegos/sem
             </p>
-            <p className="text-violet-300">
-              Real últimos 7d: <strong className="font-mono">{data.Real}</strong> riegos/semana
+            <p className="text-violet-300 font-semibold">
+              Real últimos 7d: <strong>{data.Real}</strong> riegos/sem
             </p>
           </div>
           {data.diagnosis === 'exceso' && (
-            <p className="text-amber-400 text-[10px] font-semibold pt-1">
-              ⚠️ Riego por costumbre: {Math.round(data.diff * 10) / 10} riegos de más.
+            <p className="text-amber-300 text-base font-bold pt-1">
+              ⚠️ Riego por costumbre: {Math.round(data.diff * 10) / 10} de más.
             </p>
           )}
         </div>
@@ -103,164 +92,170 @@ export const WateringStats: React.FC<WateringStatsProps> = ({ crops }) => {
   };
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* 1. Encabezado explicativo */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 space-y-1">
-        <div className="flex items-center gap-2 text-violet-400 font-bold text-xs tracking-tight">
-          <TrendingUp className="w-4 h-4" />
-          <span>Frecuencia Semanal: Real vs. Programada</span>
+    <div className="space-y-4 pb-24">
+      {/* Encabezado */}
+      <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-4 space-y-1">
+        <div className="flex items-center gap-2 text-violet-300 font-bold text-lg">
+          <TrendingUp className="w-6 h-6" />
+          <span>Frecuencia Semanal de Riego</span>
         </div>
-        <p className="text-xs text-stone-300 leading-relaxed">
-          Compara cuántas veces se regó cada planta en los últimos 7 días frente a lo que realmente necesita por calendario botánico.
+        <p className="text-base text-stone-200 leading-relaxed font-medium">
+          Compara cuántas veces se regó cada planta en los últimos 7 días con lo que realmente necesita para evitar ahogarla.
         </p>
       </div>
 
-      {/* 2. Tarjetas de resumen métrico */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-3.5 space-y-1">
-          <span className="text-[11px] text-stone-400">Total riegos esta semana</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-violet-400 font-mono tabular-nums">
-              {totalReal}
-            </span>
-            <span className="text-xs text-stone-400">
-              (ideal: ~{Math.round(totalProgramado)})
-            </span>
-          </div>
-          <p className="text-[10px] text-stone-500">Suma de todos tus cultivos</p>
-        </div>
-
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-3.5 space-y-1">
-          <span className="text-[11px] text-stone-400">Cultivos con sobreriego</span>
-          <div className="flex items-baseline gap-1.5">
-            <span className={`text-2xl font-bold font-mono tabular-nums ${
-              overwateredCrops.length > 0 ? 'text-amber-400' : 'text-emerald-400'
-            }`}>
-              {overwateredCrops.length}
-            </span>
-            <span className="text-xs text-stone-400">de {crops.length}</span>
-          </div>
-          <p className="text-[10px] text-stone-500">
-            {overwateredCrops.length > 0 ? 'Regados por rutina' : '¡Excelente disciplina!'}
+      {/* ESTADO VACÍO */}
+      {crops.length === 0 ? (
+        <div className="bg-stone-900 border-2 border-dashed border-stone-700 rounded-3xl p-6 text-center space-y-3">
+          <p className="text-lg font-bold text-white">
+            Sin datos para comparar todavía
           </p>
-        </div>
-      </div>
-
-      {/* 3. Alerta de sobreriego si aplica */}
-      {overwateredCrops.length > 0 && (
-        <div className="bg-amber-950/40 border border-amber-800/60 rounded-2xl p-3.5 space-y-1 text-xs">
-          <div className="flex items-center gap-1.5 text-amber-300 font-bold">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Alerta de Riego por Costumbre</span>
-          </div>
-          <p className="text-amber-200/90 text-[11px] leading-relaxed">
-            Has regado <strong>{overwateredCrops.map(c => c.name).join(', ')}</strong> más veces de lo programado. 
-            El exceso de agua en macetas produce pudrición radicular y hojas amarillas.
+          <p className="text-base text-stone-300 leading-relaxed font-medium">
+            Cuando registres tus plantas y comiences a anotar sus riegos, acá verás el gráfico comparativo para saber si estás regando de más por costumbre.
           </p>
+          {/* Único botón principal de esta pantalla vacía */}
+          <button
+            onClick={onOpenRegister}
+            className="w-full min-h-[52px] px-5 py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-stone-950 font-extrabold text-base rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-transform cursor-pointer"
+          >
+            <Plus className="w-5 h-5 stroke-[3]" />
+            <span>Registrar mi primer cultivo</span>
+          </button>
         </div>
-      )}
-
-      {/* 4. Gráfico de Barras con Recharts */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between text-xs px-1">
-          <span className="font-bold text-stone-200">Comparativa por Cultivo</span>
-          <span className="text-[10px] text-stone-400">Eje Y: Riegos / semana</span>
-        </div>
-
-        {crops.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-xs text-stone-400">
-            No hay cultivos para mostrar estadísticas.
-          </div>
-        ) : (
-          /* PUNTO CRÍTICO: El contenedor DEBE tener altura fija (h-72) para ResponsiveContainer */
-          <div className="h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#292524" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#a8a29e" 
-                  fontSize={11} 
-                  tickLine={false} 
-                  interval={0}
-                  angle={-15}
-                  textAnchor="end"
-                />
-                <YAxis 
-                  stroke="#a8a29e" 
-                  fontSize={11} 
-                  tickLine={false} 
-                  allowDecimals={false}
-                  domain={[0, 'auto']}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend 
-                  verticalAlign="top" 
-                  align="right"
-                  wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
-                />
-                <Bar 
-                  dataKey="Programado" 
-                  name="Programado" 
-                  fill="#38bdf8" 
-                  radius={[4, 4, 0, 0]} 
-                />
-                <Bar 
-                  dataKey="Real" 
-                  name="Real (7d)" 
-                  fill="#a855f7" 
-                  radius={[4, 4, 0, 0]} 
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Lista de diagnósticos detallados por planta */}
-      <div className="space-y-2">
-        <h3 className="text-xs font-bold text-stone-300 uppercase tracking-wider px-1">
-          Diagnóstico Individual
-        </h3>
-
-        <div className="space-y-2">
-          {chartData.map((item) => (
-            <div
-              key={item.id}
-              className="bg-stone-900 border border-stone-800 rounded-xl p-3 flex items-center justify-between text-xs"
-            >
-              <div className="space-y-0.5">
-                <span className="font-bold text-stone-100">{item.fullName}</span>
-                <p className="text-[11px] text-stone-400">
-                  Ideal: {item.Programado}/sem · Real: {item.Real}/sem
-                </p>
-              </div>
-
-              <div>
-                {item.diagnosis === 'exceso' ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-950/60 px-2 py-1 rounded-lg border border-amber-800/60">
-                    <AlertTriangle className="w-3 h-3" />
-                    Sobreriego (+{Math.round(item.diff * 10) / 10})
-                  </span>
-                ) : item.diagnosis === 'optimo' ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2 py-1 rounded-lg border border-emerald-800/60">
-                    <CheckCircle className="w-3 h-3" />
-                    Óptimo
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-300 bg-sky-950/60 px-2 py-1 rounded-lg border border-sky-800/60">
-                    <Droplet className="w-3 h-3" />
-                    Bajo riego
-                  </span>
-                )}
+      ) : (
+        <>
+          {/* Resumen métrico */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3.5 space-y-1">
+              <span className="text-base text-stone-300 font-medium block">Riegos esta semana</span>
+              <div className="flex items-baseline gap-1.5 flex-wrap">
+                <span className="text-3xl font-extrabold text-violet-300">
+                  {totalReal}
+                </span>
+                <span className="text-base text-stone-300 font-medium">
+                  (ideal: ~{Math.round(totalProgramado)})
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+
+            <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3.5 space-y-1">
+              <span className="text-base text-stone-300 font-medium block">Riego por costumbre</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-3xl font-extrabold ${
+                  overwateredCrops.length > 0 ? 'text-amber-400' : 'text-emerald-400'
+                }`}>
+                  {overwateredCrops.length}
+                </span>
+                <span className="text-base text-stone-300 font-medium">plantas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Alerta de exceso de agua */}
+          {overwateredCrops.length > 0 && (
+            <div className="bg-amber-950/50 border-2 border-amber-500 rounded-2xl p-3.5 space-y-1 text-base">
+              <div className="flex items-center gap-2 text-amber-300 font-bold text-lg">
+                <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+                <span>Alerta de Riego Excesivo</span>
+              </div>
+              <p className="text-stone-100 font-medium leading-relaxed">
+                Regaste <strong>{overwateredCrops.map(c => c.name).join(', ')}</strong> más veces de lo programado. Deja secar la tierra para que las raíces no se pudran.
+              </p>
+            </div>
+          )}
+
+          {/* Gráfico de Barras con Recharts (texto nunca menor a 16px) */}
+          <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3.5 space-y-2">
+            <span className="font-bold text-white text-base block px-1">
+              Comparativa por cada planta (Riegos por semana)
+            </span>
+
+            <div className="h-80 w-full pt-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 15, right: 10, left: -10, bottom: 25 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#44403c" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#fafaf9" 
+                    fontSize={16} 
+                    tickLine={false} 
+                    interval={0}
+                  />
+                  <YAxis 
+                    stroke="#fafaf9" 
+                    fontSize={16} 
+                    tickLine={false} 
+                    allowDecimals={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right"
+                    wrapperStyle={{ fontSize: '16px', paddingBottom: '12px', color: '#fff' }}
+                  />
+                  <Bar 
+                    dataKey="Programado" 
+                    name="Necesario" 
+                    fill="#38bdf8" 
+                    radius={[6, 6, 0, 0]} 
+                  />
+                  <Bar 
+                    dataKey="Real" 
+                    name="Real (7d)" 
+                    fill="#a855f7" 
+                    radius={[6, 6, 0, 0]} 
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Diagnóstico individual */}
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-white px-1">
+              Diagnóstico de cada planta
+            </h3>
+
+            <div className="space-y-2.5">
+              {chartData.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-stone-900 border-2 border-stone-700 rounded-xl p-3.5 flex items-center justify-between text-base gap-2 flex-wrap"
+                >
+                  <div>
+                    <strong className="font-bold text-white text-lg block">{item.fullName}</strong>
+                    <span className="text-base text-stone-300 font-medium">
+                      Ideal: {item.Programado}/sem · Real: {item.Real}/sem
+                    </span>
+                  </div>
+
+                  <div>
+                    {item.diagnosis === 'exceso' ? (
+                      <span className="inline-flex items-center gap-1.5 text-base font-bold text-amber-300 bg-amber-950 px-3 py-1.5 rounded-xl border border-amber-500">
+                        <AlertTriangle className="w-5 h-5" />
+                        Sobreriego (+{Math.round(item.diff * 10) / 10})
+                      </span>
+                    ) : item.diagnosis === 'optimo' ? (
+                      <span className="inline-flex items-center gap-1.5 text-base font-bold text-emerald-300 bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-500">
+                        <CheckCircle className="w-5 h-5" />
+                        Óptimo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-base font-bold text-sky-300 bg-sky-950 px-3 py-1.5 rounded-xl border border-sky-500">
+                        <Droplet className="w-5 h-5" />
+                        Bajo riego
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

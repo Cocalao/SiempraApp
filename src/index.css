@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    font-size: 16px; /* Base mínima obligatoria de 16px */
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px; /* Texto nunca menor a 16px */
+    line-height: 1.5;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    background-color: #0c0a09; /* Negro piedra profundo para máximo contraste */
+    color: #f5f5f4; /* Blanco cálido de alto contraste (ratio > 14:1) */
+  }
+
+  /* Asegurar que ningún elemento hijo herede o use menos de 16px */
+  button, input, select, textarea, label, span, p, a {
+    font-size: max(16px, 1rem);
   }
 }

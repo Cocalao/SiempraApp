@@ -1,25 +1,21 @@
 /**
- * Modal / Bottom-Sheet para registrar o editar un cultivo con su fecha de siembra.
- * 
- * PUNTOS CRÍTICOS DONDE ALGUIEN SUELE EQUIVOCARSE:
- * 1. INPUT NUMBER COMO STRING: Los inputs de formulario devuelven `e.target.value` como `string`.
- *    Si no se parsea con `parseInt`, luego `sowingDate + daysToHarvest` concatena cadenas ("3" + 1 = "31").
- * 2. FECHA DE SIEMBRA VACÍA: Dejar la fecha en blanco genera fechas inválidas `NaN-NaN-NaN` en los cálculos.
- *    Se debe exigir `required` y validar antes de guardar.
- * 3. VALOR MÍNIMO DE RIEGO: Un intervalo de riego de 0 días causaría un bucle infinito de necesidad de riego.
- *    Se impone `Math.max(1, interval)`.
+ * Formulario para registrar o editar un cultivo.
+ * Cumple estrictamente con:
+ * - 1. Uso desde 320px de ancho con una sola mano.
+ * - 2. Contraste para sol y texto nunca menor a 16px.
+ * - 3. Todos los campos con etiqueta visible (no solo placeholders).
+ * - 4. Un solo botón principal ("Guardar planta").
+ * - 6. Mensajes de error en español sin tecnicismos.
  */
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Droplet, Clock, MapPin, Check } from 'lucide-react';
+import { X, Calendar, Droplet, Clock, Check } from 'lucide-react';
 import { Crop, PlantLocation } from '../types/garden';
 import { PRESET_CROPS } from '../utils/storage';
 import { 
   getTodayLocalDateString, 
   calculateHarvestDate, 
-  formatSpanishDate,
-  formatToLocalDateString,
-  parseLocalDate
+  formatSpanishDate 
 } from '../utils/dateUtils';
 
 interface CropRegisterModalProps {
@@ -27,7 +23,6 @@ interface CropRegisterModalProps {
   onClose: () => void;
   onSaveCrop: (crop: Crop) => void;
   cropToEdit?: Crop | null;
-  initialPreset?: Partial<Crop> | null;
 }
 
 export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
@@ -35,11 +30,9 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
   onClose,
   onSaveCrop,
   cropToEdit,
-  initialPreset,
 }) => {
   const today = getTodayLocalDateString();
 
-  // Estados del formulario
   const [name, setName] = useState('');
   const [variety, setVariety] = useState('');
   const [location, setLocation] = useState<PlantLocation>('maceta');
@@ -50,7 +43,6 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Si estamos editando, rellenar los datos; si viene preset de planificación, usarlo; sino resetear
   useEffect(() => {
     if (cropToEdit) {
       setName(cropToEdit.name);
@@ -61,16 +53,6 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
       setDaysToHarvest(cropToEdit.daysToHarvest);
       setLastWateredDate(cropToEdit.lastWateredDate);
       setNotes(cropToEdit.notes || '');
-      setErrorMessage('');
-    } else if (initialPreset) {
-      setName(initialPreset.name || '');
-      setVariety(initialPreset.variety || '');
-      setLocation(initialPreset.location || 'maceta');
-      setSowingDate(initialPreset.sowingDate || today);
-      setWateringIntervalDays(initialPreset.wateringIntervalDays || 3);
-      setDaysToHarvest(initialPreset.daysToHarvest || 60);
-      setLastWateredDate(initialPreset.lastWateredDate || initialPreset.sowingDate || today);
-      setNotes(initialPreset.notes || '');
       setErrorMessage('');
     } else {
       setName('');
@@ -83,14 +65,12 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
       setNotes('');
       setErrorMessage('');
     }
-  }, [cropToEdit, initialPreset, isOpen, today]);
+  }, [cropToEdit, isOpen, today]);
 
   if (!isOpen) return null;
 
-  // Cálculo en tiempo real de la fecha estimada de cosecha para previsualización inmediata
   const estimatedHarvestDate = calculateHarvestDate(sowingDate || today, Math.max(1, daysToHarvest));
 
-  // Aplicar plantilla rápida
   const handleSelectPreset = (presetName: string) => {
     const preset = PRESET_CROPS.find(p => p.name === presetName);
     if (!preset) return;
@@ -106,20 +86,17 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      setErrorMessage('Por favor, ingresa el nombre de la planta o cultivo.');
+      setErrorMessage('Por favor, escribe el nombre de la planta para poder guardarla.');
       return;
     }
 
     if (!sowingDate) {
-      setErrorMessage('Por favor, selecciona una fecha de siembra válida.');
+      setErrorMessage('Por favor, elige el día en que sembraste la planta.');
       return;
     }
 
-    // PUNTO CRÍTICO: Validar que el último riego no sea anterior a la siembra de forma ilógica
     const safeInterval = Math.max(1, Number(wateringIntervalDays) || 1);
     const safeHarvestDays = Math.max(1, Number(daysToHarvest) || 1);
-    
-    // Si no se especificó último riego, asumimos la fecha de siembra o hoy
     const safeLastWatered = lastWateredDate || sowingDate;
 
     const newOrUpdatedCrop: Crop = {
@@ -131,6 +108,7 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
       wateringIntervalDays: safeInterval,
       daysToHarvest: safeHarvestDays,
       lastWateredDate: safeLastWatered,
+      wateringHistory: cropToEdit?.wateringHistory || [safeLastWatered],
       notes: notes.trim() || undefined,
       createdAt: cropToEdit ? cropToEdit.createdAt : Date.now(),
     };
@@ -140,45 +118,47 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-xs p-0 sm:p-3">
       <div 
-        className="w-full max-w-md bg-stone-900 border-t sm:border border-stone-800 rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+        className="w-full max-w-md bg-stone-900 border-t-2 sm:border-2 border-stone-600 rounded-t-3xl sm:rounded-3xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        {/* Barra superior del modal */}
-        <div className="px-5 py-4 border-b border-stone-800 flex items-center justify-between shrink-0">
+        {/* Cabecera del formulario */}
+        <div className="px-4 py-3.5 border-b border-stone-700 flex items-center justify-between shrink-0 bg-stone-900">
           <div>
-            <h2 id="modal-title" className="text-base font-bold text-stone-100">
-              {cropToEdit ? 'Editar Cultivo' : 'Registrar Nuevo Cultivo'}
+            <h2 id="modal-title" className="text-xl font-bold text-white">
+              {cropToEdit ? 'Editar planta' : 'Nueva planta'}
             </h2>
-            <p className="text-xs text-stone-400 mt-0.5">
-              Planifica el riego por necesidad real y calcula tu cosecha
+            <p className="text-base text-stone-300 font-medium">
+              Datos para calcular riego y cosecha
             </p>
           </div>
+          {/* Botón secundario para cerrar */}
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-stone-800 text-stone-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="min-h-[48px] min-w-[48px] rounded-xl bg-stone-800 text-stone-200 hover:text-white flex items-center justify-center border border-stone-700 cursor-pointer"
             aria-label="Cerrar formulario"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Contenido scrollable del formulario */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1 text-sm">
+        {/* Contenido del formulario con etiquetas visibles */}
+        <form onSubmit={handleSubmit} className="p-4 overflow-y-auto space-y-4 flex-1 text-base">
+          {/* Mensaje de error sin tecnicismos */}
           {errorMessage && (
-            <div className="p-3 bg-red-950/80 border border-red-800/80 rounded-xl text-xs text-red-200">
-              {errorMessage}
+            <div className="p-3.5 bg-red-950 border-2 border-red-500 rounded-xl text-base font-bold text-white leading-snug">
+              ⚠️ {errorMessage}
             </div>
           )}
 
-          {/* Plantillas rápidas para la familia */}
+          {/* Plantillas rápidas familiares */}
           {!cropToEdit && (
-            <div>
-              <label className="block text-xs font-semibold text-stone-300 mb-2">
-                Plantillas rápidas de huerto:
+            <div className="space-y-1.5">
+              <label className="block text-base font-bold text-stone-200">
+                Elegir sugerencia rápida:
               </label>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {PRESET_CROPS.map((preset) => (
@@ -186,13 +166,13 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
                     key={preset.name}
                     type="button"
                     onClick={() => handleSelectPreset(preset.name)}
-                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    className={`shrink-0 min-h-[48px] px-3.5 py-2 rounded-xl text-base font-semibold border-2 transition-colors cursor-pointer flex items-center gap-2 ${
                       name === preset.name
-                        ? 'bg-emerald-900/60 border-emerald-500 text-emerald-300'
-                        : 'bg-stone-800/80 border-stone-700 text-stone-300 hover:border-stone-600'
+                        ? 'bg-emerald-950 border-emerald-400 text-emerald-300'
+                        : 'bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500'
                     }`}
                   >
-                    <span>{preset.iconName}</span>
+                    <span className="text-lg">{preset.iconName}</span>
                     <span>{preset.name}</span>
                   </button>
                 ))}
@@ -200,176 +180,169 @@ export const CropRegisterModal: React.FC<CropRegisterModalProps> = ({
             </div>
           )}
 
-          {/* Nombre y variedad */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-stone-300 mb-1">
-                Nombre de la planta *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="ej: Tomate Cherry, Lechuga, Albahaca..."
-                required
-                className="w-full h-11 px-3.5 bg-stone-800 border border-stone-700 rounded-xl text-stone-100 placeholder-stone-500 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
-                  Variedad / Detalle (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={variety}
-                  onChange={(e) => setVariety(e.target.value)}
-                  placeholder="ej: En maceta 15L"
-                  className="w-full h-11 px-3.5 bg-stone-800 border border-stone-700 rounded-xl text-stone-100 placeholder-stone-500 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
-                  Ubicación
-                </label>
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value as PlantLocation)}
-                  className="w-full h-11 px-3 bg-stone-800 border border-stone-700 rounded-xl text-stone-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                >
-                  <option value="maceta">🪴 Maceta</option>
-                  <option value="balcon">🌿 Balcón / Jardinera</option>
-                  <option value="huerto">🌱 Huerto en tierra</option>
-                  <option value="mesa_cultivo">🪵 Mesa de cultivo</option>
-                </select>
-              </div>
-            </div>
+          {/* Campo 1: Nombre de la planta */}
+          <div className="space-y-1.5">
+            <label htmlFor="crop-name-input" className="block text-base font-bold text-white">
+              Nombre de la planta <span className="text-emerald-400">(obligatorio)</span>:
+            </label>
+            <input
+              id="crop-name-input"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ejemplo: Tomate Cherry, Albahaca..."
+              required
+              className="w-full min-h-[48px] px-3.5 bg-stone-950 border-2 border-stone-600 rounded-xl text-white text-base font-medium placeholder-stone-400 focus:outline-none focus:border-emerald-400"
+            />
           </div>
 
-          {/* Fecha de Siembra */}
-          <div className="p-3.5 bg-stone-800/60 border border-stone-700/80 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Calendar className="w-4 h-4" />
-              <span className="font-semibold text-xs tracking-tight">1. Fecha de Siembra</span>
-            </div>
-
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">
-                ¿Qué día sembraste las semillas o trasplantaste?
-              </label>
-              <input
-                type="date"
-                value={sowingDate}
-                onChange={(e) => setSowingDate(e.target.value)}
-                required
-                className="w-full h-11 px-3.5 bg-stone-900 border border-stone-700 rounded-xl text-stone-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
-              />
-            </div>
+          {/* Campo 2: Dónde está plantada */}
+          <div className="space-y-1.5">
+            <label htmlFor="crop-location-select" className="block text-base font-bold text-white">
+              ¿Dónde está plantada?
+            </label>
+            <select
+              id="crop-location-select"
+              value={location}
+              onChange={(e) => setLocation(e.target.value as PlantLocation)}
+              className="w-full min-h-[48px] px-3.5 bg-stone-950 border-2 border-stone-600 rounded-xl text-white text-base font-medium focus:outline-none focus:border-emerald-400 cursor-pointer"
+            >
+              <option value="maceta">🪴 En maceta</option>
+              <option value="balcon">🌿 En balcón o jardinera</option>
+              <option value="huerto">🌱 En tierra directa de huerto</option>
+              <option value="mesa_cultivo">🪵 En mesa de cultivo</option>
+            </select>
           </div>
 
-          {/* Configuración de Riego Consciente */}
-          <div className="p-3.5 bg-sky-950/30 border border-sky-800/50 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-sky-400">
-              <Droplet className="w-4 h-4" />
-              <span className="font-semibold text-xs tracking-tight">2. Intervalo de Riego por Necesidad</span>
+          {/* Campo 3: Detalle o variedad */}
+          <div className="space-y-1.5">
+            <label htmlFor="crop-variety-input" className="block text-base font-bold text-white">
+              Detalle del lugar o variedad (opcional):
+            </label>
+            <input
+              id="crop-variety-input"
+              type="text"
+              value={variety}
+              onChange={(e) => setVariety(e.target.value)}
+              placeholder="Ejemplo: Maceta grande de 20 litros"
+              className="w-full min-h-[48px] px-3.5 bg-stone-950 border-2 border-stone-600 rounded-xl text-white text-base font-medium placeholder-stone-400 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+
+          {/* Campo 4: Fecha de Siembra */}
+          <div className="p-3.5 bg-stone-950 border-2 border-stone-700 rounded-2xl space-y-2">
+            <label htmlFor="crop-sowing-date" className="block text-base font-bold text-emerald-400 flex items-center gap-2">
+              <Calendar className="w-5 h-5 shrink-0" />
+              <span>Día en que sembraste o plantaste:</span>
+            </label>
+            <input
+              id="crop-sowing-date"
+              type="date"
+              value={sowingDate}
+              onChange={(e) => setSowingDate(e.target.value)}
+              required
+              className="w-full min-h-[48px] px-3 bg-stone-900 border-2 border-stone-600 rounded-xl text-white text-base font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
+            />
+          </div>
+
+          {/* Campo 5 y 6: Riego consciente */}
+          <div className="p-3.5 bg-sky-950/40 border-2 border-sky-800 rounded-2xl space-y-3">
+            <div className="flex items-center gap-2 text-sky-300 font-bold text-base">
+              <Droplet className="w-5 h-5 shrink-0" />
+              <span>Necesidad real de riego:</span>
             </div>
 
-            <div>
-              <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-stone-300">Regar cada:</span>
-                <span className="font-bold text-sky-300">
-                  {wateringIntervalDays} {wateringIntervalDays === 1 ? 'día' : 'días'}
-                </span>
-              </div>
+            <div className="space-y-1.5">
+              <label htmlFor="crop-interval-slider" className="block text-base font-medium text-stone-200">
+                Regar cada <strong className="text-sky-300 text-lg">{wateringIntervalDays} {wateringIntervalDays === 1 ? 'día' : 'días'}</strong>:
+              </label>
               <input
+                id="crop-interval-slider"
                 type="range"
                 min="1"
                 max="10"
                 step="1"
                 value={wateringIntervalDays}
                 onChange={(e) => setWateringIntervalDays(parseInt(e.target.value, 10))}
-                className="w-full accent-sky-500 cursor-pointer h-2 bg-stone-700 rounded-lg"
+                className="w-full h-8 accent-sky-400 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-stone-400 mt-1">
+              <div className="flex justify-between text-base text-stone-300 font-semibold">
                 <span>Diario (1d)</span>
                 <span>Frecuente (3d)</span>
-                <span>Secano (6-10d)</span>
+                <span>Seco (6d+)</span>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">
-                ¿Cuándo se regó por última vez?
+            <div className="space-y-1.5 pt-1">
+              <label htmlFor="crop-last-watered" className="block text-base font-medium text-stone-200">
+                ¿Qué día regaste por última vez?
               </label>
               <input
+                id="crop-last-watered"
                 type="date"
                 value={lastWateredDate}
                 onChange={(e) => setLastWateredDate(e.target.value)}
-                className="w-full h-10 px-3 bg-stone-900 border border-stone-700 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-sky-500 cursor-pointer"
+                className="w-full min-h-[48px] px-3 bg-stone-900 border-2 border-stone-600 rounded-xl text-white text-base font-bold focus:outline-none focus:border-sky-400 cursor-pointer"
               />
-              <p className="text-[11px] text-sky-200/70 mt-1">
-                Tip: En maceta no riegues por rutina; espera a que la superficie pierda la humedad.
-              </p>
             </div>
           </div>
 
-          {/* Configuración de Cosecha */}
-          <div className="p-3.5 bg-amber-950/30 border border-amber-800/50 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-amber-400">
-              <Clock className="w-4 h-4" />
-              <span className="font-semibold text-xs tracking-tight">3. Estimación de Cosecha</span>
+          {/* Campo 7: Cosecha estimada */}
+          <div className="p-3.5 bg-amber-950/40 border-2 border-amber-800 rounded-2xl space-y-2.5">
+            <div className="flex items-center gap-2 text-amber-300 font-bold text-base">
+              <Clock className="w-5 h-5 shrink-0" />
+              <span>Tiempo total hasta la cosecha:</span>
             </div>
 
-            <div>
-              <label className="block text-xs text-stone-300 mb-1">
-                Días de ciclo desde la siembra hasta la cosecha:
+            <div className="space-y-1.5">
+              <label htmlFor="crop-days-harvest" className="block text-base font-medium text-stone-200">
+                Cantidad de días del ciclo completo:
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <input
+                  id="crop-days-harvest"
                   type="number"
                   min="5"
                   max="365"
                   value={daysToHarvest}
                   onChange={(e) => setDaysToHarvest(parseInt(e.target.value, 10) || 1)}
-                  className="w-24 h-11 px-3 bg-stone-900 border border-stone-700 rounded-xl text-stone-100 text-center font-bold focus:outline-none focus:border-amber-500"
+                  className="w-28 min-h-[48px] px-3 bg-stone-900 border-2 border-stone-600 rounded-xl text-white text-center text-lg font-bold focus:outline-none focus:border-amber-400"
                 />
-                <span className="text-xs text-stone-400">días en total</span>
+                <span className="text-base text-stone-300 font-semibold">días en total</span>
               </div>
             </div>
 
-            {/* Aviso en tiempo real de la fecha estimada */}
-            <div className="p-2.5 bg-stone-900/80 rounded-xl border border-stone-800 text-xs text-stone-300">
-              <div className="text-[11px] text-stone-400">Día estimado de recolección:</div>
-              <div className="font-semibold text-amber-300 mt-0.5">
+            <div className="p-3 bg-stone-900 border border-stone-700 rounded-xl text-base text-stone-200 leading-snug">
+              <span className="text-stone-300 block font-medium">Fecha estimada de cosecha:</span>
+              <strong className="text-amber-300 text-lg block mt-0.5">
                 📅 {formatSpanishDate(estimatedHarvestDate)}
-              </div>
+              </strong>
             </div>
           </div>
 
-          {/* Notas libres */}
-          <div>
-            <label className="block text-xs font-medium text-stone-300 mb-1">
-              Notas familiares o cuidados (opcional)
+          {/* Campo 8: Notas familiares */}
+          <div className="space-y-1.5">
+            <label htmlFor="crop-notes-textarea" className="block text-base font-bold text-white">
+              Consejo o recordatorio familiar (opcional):
             </label>
             <textarea
+              id="crop-notes-textarea"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="ej: Proteger del viento fuerte, revisar pulgones en las hojas."
+              placeholder="Ejemplo: No mojar las hojas, sol por la mañana."
               rows={2}
-              className="w-full p-3 bg-stone-800 border border-stone-700 rounded-xl text-stone-100 placeholder-stone-500 text-xs focus:outline-none focus:border-emerald-500"
+              className="w-full p-3 bg-stone-950 border-2 border-stone-600 rounded-xl text-white text-base font-medium placeholder-stone-400 focus:outline-none focus:border-emerald-400"
             />
           </div>
 
-          {/* Botón de guardar */}
+          {/* UN SOLO BOTÓN PRINCIPAL DE LA PANTALLA */}
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-stone-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform cursor-pointer"
+              className="w-full min-h-[52px] bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-stone-950 font-extrabold text-lg rounded-2xl flex items-center justify-center gap-2 shadow-xl transition-transform cursor-pointer"
             >
-              <Check className="w-5 h-5 stroke-[2.5]" />
-              <span>{cropToEdit ? 'Guardar Cambios' : 'Registrar Cultivo'}</span>
+              <Check className="w-6 h-6 stroke-[3]" />
+              <span>{cropToEdit ? 'Guardar cambios de la planta' : 'Guardar nueva planta'}</span>
             </button>
           </div>
         </form>

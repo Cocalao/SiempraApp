@@ -1,19 +1,14 @@
 /**
- * Calendario de Riego por Cultivo para SIEMBRA.
- * 
- * RESUELVE EL PROBLEMA CENTRAL:
- * "El huerto se riega por costumbre y no por necesidad".
- * 
- * PUNTOS CRÍTICOS DONDE ALGUIEN SUELE EQUIVOCARSE:
- * 1. PROYECCIÓN DE RIEGO A FUTURO: Al calcular los días siguientes en un calendario semanal,
- *    si un cultivo se riega cada 3 días, los próximos riegos caen en (últimoRiego + N*intervalo).
- *    Si solo se proyecta 1 ciclo, el calendario semanal parecería vacío para los días posteriores.
- * 2. ZONA HORARIA EN PROYECCIONES: Al generar los próximos 7 días, usar siempre `parseLocalDate`
- *    y `addDaysToDate` para evitar saltos o duplicación de días en meses de 30 o 31 días.
+ * Calendario de Riego por Cultivo.
+ * Cumple con:
+ * - 1. Uso desde 320px (carrusel deslizable con una mano).
+ * - 2. Texto nunca menor a 16px y alto contraste para exteriores.
+ * - 4. Botones secundarios en tarjetas para preservar la jerarquía.
+ * - 5. Estado vacío claro que invita a la acción.
  */
 
 import React, { useState } from 'react';
-import { Droplet, AlertCircle, CheckCircle2, Calendar as CalendarIcon, Info, ShieldCheck } from 'lucide-react';
+import { Droplet, CheckCircle2, Calendar as CalendarIcon, ShieldCheck, Plus } from 'lucide-react';
 import { Crop } from '../types/garden';
 import { 
   getTodayLocalDateString, 
@@ -27,16 +22,18 @@ import {
 interface WateringCalendarProps {
   crops: Crop[];
   onWaterToday: (cropId: string) => void;
+  onOpenRegister: () => void;
 }
 
 export const WateringCalendar: React.FC<WateringCalendarProps> = ({
   crops,
   onWaterToday,
+  onOpenRegister,
 }) => {
   const todayStr = getTodayLocalDateString();
   const [selectedDayOffset, setSelectedDayOffset] = useState<number>(0);
 
-  // Generamos los próximos 7 días para el selector horizontal
+  // Generamos los próximos 7 días para el carrusel deslizable
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const dateStr = addDaysToDate(todayStr, i);
     const dateObj = parseLocalDate(dateStr);
@@ -53,7 +50,6 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
 
   const selectedDateStr = addDaysToDate(todayStr, selectedDayOffset);
 
-  // Clasificación para el día de HOY: Necesidad real vs Suelo húmedo
   const cropsNeedingWaterToday = crops.filter(c => {
     const status = getWateringStatus(c.lastWateredDate, c.wateringIntervalDays);
     return status.needsWaterToday;
@@ -64,24 +60,16 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
     return !status.needsWaterToday;
   });
 
-  /**
-   * Determina si un cultivo tiene proyectado riego en una fecha específica del calendario.
-   * PUNTO CRÍTICO: Una planta se riega en lastWateredDate + (k * intervalDays).
-   */
   const getCropsForDate = (targetDateStr: string) => {
     return crops.filter(c => {
       const status = getWateringStatus(c.lastWateredDate, c.wateringIntervalDays);
       
-      // Si la fecha objetivo es hoy y necesita riego o ya fue regado hoy
       if (targetDateStr === todayStr) {
         return status.needsWaterToday || status.urgency === 'watered_today';
       }
 
-      // Si es una fecha futura, verificamos si coincide con los múltiplos del ciclo de riego
       const daysDiff = (parseLocalDate(targetDateStr).getTime() - parseLocalDate(c.lastWateredDate).getTime()) / (1000 * 60 * 60 * 24);
       const roundedDays = Math.round(daysDiff);
-      
-      // Debe ser posterior a hoy y múltiplo del intervalo
       return roundedDays > 0 && (roundedDays % c.wateringIntervalDays === 0);
     });
   };
@@ -89,107 +77,99 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
   const cropsForSelectedDay = getCropsForDate(selectedDateStr);
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* 1. Alerta pedagógica anti-riego por costumbre y Test Interactivo del Dedo */}
-      <div className="bg-sky-950/40 border border-sky-800/60 rounded-2xl p-4 text-sky-100 shadow-sm space-y-3">
-        <div className="flex items-center gap-2 text-sky-300 font-semibold text-xs tracking-tight">
-          <ShieldCheck className="w-4 h-4 text-sky-400" />
-          <span>Regla de Oro: Riego por Necesidad</span>
+    <div className="space-y-4 pb-24">
+      {/* 1. Alerta pedagógica anti-riego por costumbre y Test del Dedo */}
+      <section className="bg-sky-950/40 border-2 border-sky-600 rounded-2xl p-4 text-white shadow-md space-y-3">
+        <div className="flex items-center gap-2 text-sky-300 font-bold text-lg">
+          <ShieldCheck className="w-6 h-6 text-sky-400 shrink-0" />
+          <span>Regla de Oro: Regar por Necesidad</span>
         </div>
-        <p className="text-xs text-sky-200/90 leading-relaxed">
-          En huertos familiares y macetas, regar a diario por rutina ahoga las raíces. 
+        <p className="text-base text-stone-200 leading-relaxed font-medium">
+          Regar por costumbre todos los días ahoga las raíces de tus macetas. 
           <strong> Antes de regar:</strong> introduce 2 cm tu dedo en la tierra.
         </p>
 
-        {/* Guía rápida táctil de diagnóstico del sustrato */}
-        <div className="bg-stone-900/80 rounded-xl p-3 border border-stone-800 space-y-2 text-xs">
-          <div className="text-[11px] font-bold text-sky-300 uppercase tracking-wide">
-            Diagnóstico rápido del sustrato (Test de los 2 cm):
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
+        {/* Guía rápida de diagnóstico con texto >= 16px */}
+        <div className="bg-stone-900 border-2 border-stone-700 rounded-xl p-3.5 space-y-2.5">
+          <strong className="text-base font-bold text-sky-300 block">
+            ¿Cómo está la tierra a 2 cm de profundidad?
+          </strong>
+          <div className="space-y-2 text-base">
+            <div className="p-2.5 rounded-lg bg-stone-950 border border-stone-700">
               <span className="font-bold text-amber-300 block">🍂 Dedo seco y limpio:</span>
-              <span className="text-stone-300">Sustrato agotado. <strong>Sí toca regar</strong>.</span>
+              <span className="text-stone-200">Suelo seco. <strong>Sí toca regar</strong>.</span>
             </div>
-            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
-              <span className="font-bold text-emerald-300 block">🪴 Dedo fresco con tierra:</span>
-              <span className="text-stone-300">Humedad activa. <strong>¡No riegues hoy!</strong></span>
-            </div>
-            <div className="p-2 rounded-lg bg-stone-800/70 border border-stone-700/60">
-              <span className="font-bold text-sky-300 block">🌊 Dedo empapado / barro:</span>
-              <span className="text-stone-300">Exceso peligroso. Revisa el drenaje de la maceta.</span>
+            <div className="p-2.5 rounded-lg bg-stone-950 border border-stone-700">
+              <span className="font-bold text-emerald-400 block">🪴 Dedo fresco con tierra pegada:</span>
+              <span className="text-stone-200">Humedad activa. <strong>¡No riegues hoy!</strong></span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 2. Resumen rápido de hoy */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-3.5 space-y-1">
-          <span className="text-[11px] text-stone-400">Necesitan agua hoy</span>
+        <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3.5 space-y-1">
+          <span className="text-base font-medium text-stone-300 block">Necesitan agua hoy</span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-amber-400 tabular-nums">
+            <span className="text-3xl font-extrabold text-amber-400">
               {cropsNeedingWaterToday.length}
             </span>
-            <span className="text-xs text-stone-400">
+            <span className="text-base text-stone-300 font-medium">
               de {crops.length}
             </span>
           </div>
-          <p className="text-[10px] text-stone-500">Sustrato seco según su ciclo</p>
         </div>
 
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-3.5 space-y-1">
-          <span className="text-[11px] text-stone-400">Descanso (tierra húmeda)</span>
+        <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3.5 space-y-1">
+          <span className="text-base font-medium text-stone-300 block">Tierra húmeda</span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-emerald-400 tabular-nums">
+            <span className="text-3xl font-extrabold text-emerald-400">
               {cropsMoistToday.length}
             </span>
-            <span className="text-xs text-stone-400">cultivos</span>
+            <span className="text-base text-stone-300 font-medium">descansan</span>
           </div>
-          <p className="text-[10px] text-stone-500">No regar por hábito</p>
         </div>
       </div>
 
-      {/* 3. Carrusel / Selector de días de la semana */}
-      <div className="bg-stone-900 border border-stone-800 rounded-2xl p-3 space-y-3">
-        <div className="flex items-center justify-between text-xs px-1">
-          <div className="flex items-center gap-1.5 font-semibold text-stone-200">
-            <CalendarIcon className="w-3.5 h-3.5 text-sky-400" />
-            <span>Calendario de la semana</span>
+      {/* 3. Selector de días con scroll horizontal (ideal para 320px) */}
+      <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-3 space-y-2.5">
+        <div className="flex items-center justify-between text-base font-bold text-stone-200 px-1">
+          <div className="flex items-center gap-1.5">
+            <CalendarIcon className="w-5 h-5 text-sky-400" />
+            <span>Calendario semanal</span>
           </div>
-          <span className="text-[11px] text-stone-400">
+          <span className="text-stone-300 text-base font-medium">
             {formatSpanishDate(selectedDateStr, true)}
           </span>
         </div>
 
-        {/* Botones de días horizontales (hitbox amplia para el pulgar) */}
-        <div className="grid grid-cols-7 gap-1.5">
+        {/* Carrusel horizontal táctil con botones anchos >= 56px */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {weekDays.map((d) => {
             const isSelected = selectedDayOffset === d.offset;
-            const scheduledForThisDay = getCropsForDate(d.dateStr).length;
+            const countForDay = getCropsForDate(d.dateStr).length;
 
             return (
               <button
                 key={d.offset}
                 onClick={() => setSelectedDayOffset(d.offset)}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                className={`min-w-[58px] min-h-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer border-2 shrink-0 ${
                   isSelected
-                    ? 'bg-sky-500 text-stone-950 font-bold shadow-md'
-                    : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                    ? 'bg-sky-500 border-white text-stone-950 font-extrabold shadow-lg'
+                    : 'bg-stone-800 border-stone-700 text-stone-200 hover:border-stone-500'
                 }`}
+                aria-pressed={isSelected}
               >
-                <span className={`text-[10px] ${isSelected ? 'text-stone-900 font-semibold' : 'text-stone-400'}`}>
+                <span className="text-base font-semibold leading-tight">
                   {d.isToday ? 'Hoy' : d.dayName}
                 </span>
-                <span className="text-sm font-bold tabular-nums mt-0.5">
+                <span className="text-lg font-bold leading-tight mt-0.5">
                   {d.dayNumber}
                 </span>
-                {/* Indicador de gotas si hay riegos previstos */}
-                <span className="h-1.5 flex items-center justify-center mt-1">
-                  {scheduledForThisDay > 0 && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-stone-950' : 'bg-sky-400'}`} />
-                  )}
-                </span>
+                {countForDay > 0 && (
+                  <span className={`w-2 h-2 rounded-full mt-1 ${isSelected ? 'bg-stone-950' : 'bg-sky-400'}`} />
+                )}
               </button>
             );
           })}
@@ -198,69 +178,80 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
 
       {/* 4. Lista de cultivos según el día seleccionado */}
       <div className="space-y-3">
-        <h3 className="text-xs font-bold text-stone-300 uppercase tracking-wider px-1">
+        <h3 className="text-lg font-bold text-white px-1">
           {selectedDayOffset === 0
-            ? 'Plan de Riego para Hoy'
-            : `Riegos programados para el ${formatSpanishDayMonth(selectedDateStr)}`}
+            ? 'Plan de riego para hoy'
+            : `Riegos del ${formatSpanishDayMonth(selectedDateStr)}`}
         </h3>
 
+        {/* ESTADO VACÍO: cuando no hay cultivos cargados */}
         {crops.length === 0 ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center text-stone-400 text-xs">
-            No tienes cultivos registrados todavía. Usa el botón "Nuevo" arriba para registrar tu primera planta.
+          <div className="bg-stone-900 border-2 border-dashed border-stone-700 rounded-3xl p-6 text-center space-y-3">
+            <p className="text-lg font-bold text-white">
+              Aún no tienes plantas registradas
+            </p>
+            <p className="text-base text-stone-300 leading-relaxed">
+              Registra tu primer cultivo para que SIEMBRA arme tu calendario de riego personalizado según la necesidad de cada maceta.
+            </p>
+            {/* Único botón principal de esta pantalla vacía */}
+            <button
+              onClick={onOpenRegister}
+              className="w-full min-h-[52px] px-5 py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-stone-950 font-extrabold text-base rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-transform cursor-pointer"
+            >
+              <Plus className="w-5 h-5 stroke-[3]" />
+              <span>Registrar mi primer cultivo</span>
+            </button>
           </div>
         ) : cropsForSelectedDay.length === 0 ? (
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 text-center space-y-1">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
-            <p className="text-xs font-semibold text-stone-200">
-              Ningún cultivo requiere riego este día
+          <div className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-5 text-center space-y-1.5">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+            <p className="text-lg font-bold text-white">
+              Ninguna planta necesita agua este día
             </p>
-            <p className="text-[11px] text-stone-400">
-              Todos los cultivos retienen humedad adecuada para esta fecha.
+            <p className="text-base text-stone-300">
+              Todas retienen humedad adecuada para esta fecha. ¡Déjalas respirar!
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {cropsForSelectedDay.map((crop) => {
               const status = getWateringStatus(crop.lastWateredDate, crop.wateringIntervalDays);
 
               return (
                 <div
                   key={crop.id}
-                  className="bg-stone-900 border border-stone-800 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs"
+                  className="bg-stone-900 border-2 border-stone-700 rounded-2xl p-4 flex flex-col gap-2.5 shadow-sm"
                 >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-stone-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-lg font-bold text-white block">
                         {crop.name}
                       </span>
-                      <span className="text-[10px] text-stone-400 bg-stone-800 px-2 py-0.5 rounded-md">
-                        Cada {crop.wateringIntervalDays} días
+                      <span className="text-base text-stone-300 font-medium">
+                        Regar cada {crop.wateringIntervalDays} días · {crop.variety || crop.location}
                       </span>
                     </div>
-                    <p className="text-[11px] text-stone-400">
-                      Último riego: {formatSpanishDayMonth(crop.lastWateredDate)} · {crop.variety || crop.location}
-                    </p>
                   </div>
 
-                  {/* Si es hoy, permitir marcar como regado directamente */}
+                  {/* Botón secundario para marcar regado */}
                   {selectedDayOffset === 0 && (
                     <button
                       onClick={() => onWaterToday(crop.id)}
-                      className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer ${
+                      className={`w-full min-h-[48px] px-4 py-2.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-transform active:scale-98 cursor-pointer border-2 ${
                         status.urgency === 'watered_today'
-                          ? 'bg-stone-800 text-stone-400 cursor-default'
-                          : 'bg-sky-500 hover:bg-sky-400 text-stone-950 font-bold shadow-sm'
+                          ? 'bg-stone-800 border-stone-600 text-emerald-400 cursor-default'
+                          : 'bg-sky-950 border-sky-400 text-sky-200 hover:bg-sky-900'
                       }`}
                     >
                       {status.urgency === 'watered_today' ? (
                         <>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span>Listo</span>
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 stroke-[3]" />
+                          <span>Regado hoy</span>
                         </>
                       ) : (
                         <>
-                          <Droplet className="w-4 h-4" />
-                          <span>Regar</span>
+                          <Droplet className="w-5 h-5 text-sky-400" />
+                          <span>Marcar regado hoy</span>
                         </>
                       )}
                     </button>
@@ -271,33 +262,6 @@ export const WateringCalendar: React.FC<WateringCalendarProps> = ({
           </div>
         )}
       </div>
-
-      {/* 5. Cultivos que NO deben regarse hoy (para reforzar el problema del usuario) */}
-      {selectedDayOffset === 0 && cropsMoistToday.length > 0 && (
-        <div className="bg-stone-900/60 border border-stone-800/80 rounded-2xl p-4 space-y-2.5">
-          <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
-            <Info className="w-4 h-4 text-emerald-400" />
-            <span>Plantas que NO necesitan riego hoy (¡Déjalas descansar!)</span>
-          </div>
-
-          <div className="space-y-2">
-            {cropsMoistToday.map((crop) => {
-              const status = getWateringStatus(crop.lastWateredDate, crop.wateringIntervalDays);
-              return (
-                <div
-                  key={crop.id}
-                  className="flex items-center justify-between text-xs py-1 border-b border-stone-800/50 last:border-none"
-                >
-                  <span className="text-stone-300 font-medium">{crop.name}</span>
-                  <span className="text-[11px] text-stone-400">
-                    {status.statusBadgeText}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
