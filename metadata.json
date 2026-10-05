@@ -1,0 +1,6 @@
+{
+  "name": "SIEMBRA - Gestión de Huerto y Riego Consciente",
+  "description": "Aplicación para familias con huerto o macetas. Registro de cultivos, calendario de riego según necesidad real y aviso de cosecha estimada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
