@@ -25,10 +25,11 @@ import { CropRegisterModal } from './components/CropRegisterModal';
 import { WateringCalendar } from './components/WateringCalendar';
 import { HarvestAvisos } from './components/HarvestAvisos';
 import { WateringStats } from './components/WateringStats';
+import { BackupModal } from './components/BackupModal';
 import { Crop, TabType } from './types/garden';
 import { loadCropsFromStorage, saveCropsToStorage } from './utils/storage';
 import { getTodayLocalDateString, getWateringStatus, getHarvestStatus } from './utils/dateUtils';
-import { Sprout, Plus, Droplets, Sparkles, Filter, BarChart3 } from 'lucide-react';
+import { Sprout, Plus, Droplets, Sparkles, Filter, BarChart3, HardDrive } from 'lucide-react';
 
 export default function App() {
   // 1. Estado de cultivos cargados de localStorage
@@ -37,9 +38,10 @@ export default function App() {
   // 2. Navegación activa: 'cultivos' | 'riego' | 'cosecha' | 'estadisticas'
   const [currentTab, setCurrentTab] = useState<TabType>('cultivos');
 
-  // 3. Control del modal de registro / edición
+  // 3. Control de los modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cropToEdit, setCropToEdit] = useState<Crop | null>(null);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   // 4. Filtro opcional en la lista de cultivos
   const [filterLocation, setFilterLocation] = useState<string>('all');
@@ -140,7 +142,8 @@ export default function App() {
         {/* Barra superior */}
         <Header 
           cropCount={crops.length} 
-          onOpenRegister={handleOpenNewCropModal} 
+          onOpenRegister={handleOpenNewCropModal}
+          onOpenBackup={() => setIsBackupModalOpen(true)}
         />
 
         {/* Contenido principal según la pestaña activa */}
@@ -289,6 +292,14 @@ export default function App() {
           }}
           onSaveCrop={handleSaveCrop}
           cropToEdit={cropToEdit}
+        />
+
+        {/* Modal de Respaldo y Copias de Seguridad */}
+        <BackupModal
+          isOpen={isBackupModalOpen}
+          onClose={() => setIsBackupModalOpen(false)}
+          crops={crops}
+          onUpdateCrops={(newCrops) => setCrops(newCrops)}
         />
 
         {/* Barra de Navegación Inferior Fija para Móvil */}

@@ -192,3 +192,77 @@ export function saveCropsToStorage(crops: Crop[]): boolean {
     return false;
   }
 }
+
+/**
+ * Borra por completo los datos guardados en localStorage.
+ */
+export function clearAllCropsFromStorage(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    return true;
+  } catch (err) {
+    console.error('Error al limpiar localStorage:', err);
+    return false;
+  }
+}
+
+/**
+ * Exporta los cultivos a un archivo .json descargable en el dispositivo del usuario.
+ * Crea un Blob de tipo application/json y un enlace <a> temporal para forzar la descarga.
+ */
+export function exportCropsToJSON(crops: Crop[]): void {
+  if (typeof window === 'undefined') return;
+
+  const dataString = JSON.stringify(crops, null, 2);
+  const blob = new Blob([dataString], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  const today = getTodayLocalDateString();
+  link.download = `siembra_respaldo_huerto_${today}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Valida y parsea un archivo JSON importado por el usuario.
+ * Protege contra estructuras corruptas o datos incompletos.
+ */
+export function parseImportedJSON(jsonString: string): { success: boolean; data?: Crop[]; error?: string } {
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (!Array.isArray(parsed)) {
+      return { success: false, error: 'El archivo JSON no contiene una lista válida de cultivos.' };
+    }
+
+    // Validamos que cada elemento tenga al menos id, name y sowingDate
+    const validCrops: Crop[] = parsed.map((item: any, index: number) => {
+      if (!item.name || !item.sowingDate) {
+        throw new Error(`El cultivo #${index + 1} no tiene nombre o fecha de siembra.`);
+      }
+      return {
+        id: item.id || `crop-imported-${Date.now()}-${index}`,
+        name: String(item.name),
+        variety: item.variety ? String(item.variety) : undefined,
+        location: item.location || 'maceta',
+        sowingDate: String(item.sowingDate),
+        wateringIntervalDays: Math.max(1, Number(item.wateringIntervalDays) || 3),
+        lastWateredDate: item.lastWateredDate || item.sowingDate,
+        wateringHistory: Array.isArray(item.wateringHistory)
+          ? item.wateringHistory
+          : (item.lastWateredDate ? [item.lastWateredDate] : []),
+        daysToHarvest: Math.max(1, Number(item.daysToHarvest) || 60),
+        notes: item.notes ? String(item.notes) : undefined,
+        createdAt: Number(item.createdAt) || Date.now(),
+      };
+    });
+
+    return { success: true, data: validCrops };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error al procesar el archivo JSON.' };
+  }
+}
